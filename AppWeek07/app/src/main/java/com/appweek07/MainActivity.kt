@@ -363,6 +363,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        updateInfoDisplay()
     }
 
     private fun showItemDetailsDialog(item: CartItem) {
@@ -432,18 +433,18 @@ class MainActivity : AppCompatActivity() {
             CartItem("Milk", 1, 3.0)
         ))
 
-
-        // Notify all adapters
-        studentAdapter.notifyDataSetChanged()
-        cartAdapter.notifyDataSetChanged()
-        taskAdapter.notifyDataSetChanged()
-
         // Add initial tasks
         taskList.addAll(listOf(
             Task("Complete Assignment", "Mobile Programming", false, TaskPriority.HIGH),
             Task("Shopping", "Visit Mart", false, TaskPriority.MEDIUM),
             Task("Tour", "Museum", true, TaskPriority.LOW)
         ))
+
+        // Notify all adapters
+        studentAdapter.notifyDataSetChanged()
+        cartAdapter.notifyDataSetChanged()
+        taskAdapter.notifyDataSetChanged()
+
 
         Log.d(TAG, "Initial data added to all modes")
     }
