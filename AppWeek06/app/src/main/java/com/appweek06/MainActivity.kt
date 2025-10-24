@@ -15,6 +15,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var radioGroup: RadioGroup
     private lateinit var radioStudentList: RadioButton
     private lateinit var radioShoppingCart: RadioButton
+    private lateinit var radioTaskManager: RadioButton
 
     private lateinit var listView: ListView
     private lateinit var editTextInput: EditText
@@ -30,10 +31,18 @@ class MainActivity : AppCompatActivity() {
     // Data Storage
     private lateinit var studentList: ArrayList<Student>
     private lateinit var cartItemList: ArrayList<CartItem>
+    private lateinit var taskList: ArrayList<Task>
 
     // Adapters
     private lateinit var studentAdapter: ArrayAdapter<Student>
     private lateinit var cartAdapter: ArrayAdapter<CartItem>
+    private lateinit var taskAdapter: ArrayAdapter<Task>
+
+    // Task Manager specific UI
+    private lateinit var layoutTaskControls: LinearLayout
+    private lateinit var spinnerPriority: Spinner
+    private lateinit var editTextDescription: EditText
+
 
     // Current Mode
     private var currentMode = AppMode.STUDENT_LIST
@@ -61,6 +70,7 @@ class MainActivity : AppCompatActivity() {
     private fun initializeData() {
         studentList = ArrayList()
         cartItemList = ArrayList()
+        taskList = ArrayList()
 
         Log.d(TAG, "Data structures initialized")
     }
@@ -70,6 +80,7 @@ class MainActivity : AppCompatActivity() {
         radioGroup = findViewById(R.id.radioGroup)
         radioStudentList = findViewById(R.id.radioStudentList)
         radioShoppingCart = findViewById(R.id.radioShoppingCart)
+        radioTaskManager = findViewById(R.id.radioTaskManager)
 
         // Common UI
         listView = findViewById(R.id.listView)
@@ -83,6 +94,12 @@ class MainActivity : AppCompatActivity() {
         editTextPrice = findViewById(R.id.editTextPrice)
         editTextQuantity = findViewById(R.id.editTextQuantity)
 
+        // Task Manager specific
+        layoutTaskControls = findViewById(R.id.layoutTaskControls)
+        spinnerPriority = findViewById(R.id.spinnerPriority)
+        editTextDescription = findViewById(R.id.editTextDescription)
+
+        setupPrioritySpinner()
 
         Log.d(TAG, "Views initialized")
     }
@@ -90,8 +107,16 @@ class MainActivity : AppCompatActivity() {
     private fun setupAdapters() {
         studentAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, studentList)
         cartAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, cartItemList)
+        taskAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, taskList)
 
         Log.d(TAG, "Adapters setup completed")
+    }
+
+    private fun setupPrioritySpinner() {
+        val priorities = TaskPriority.values().map { it.displayName }
+        val priorityAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, priorities)
+        priorityAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerPriority.adapter = priorityAdapter
     }
 
     private fun setupListeners() {
@@ -100,6 +125,7 @@ class MainActivity : AppCompatActivity() {
             when (checkedId) {
                 R.id.radioStudentList -> setMode(AppMode.STUDENT_LIST)
                 R.id.radioShoppingCart -> setMode(AppMode.SHOPPING_CART)
+                R.id.radioTaskManager -> setMode(AppMode.TASK_MANAGER)
             }
         }
 
@@ -129,16 +155,24 @@ class MainActivity : AppCompatActivity() {
                 editTextInput.hint = "Enter student name"
                 buttonAdd.text = "Add Student"
                 layoutCartControls.visibility = View.GONE
-
+                layoutTaskControls.visibility = View.GONE
                 listView.adapter = studentAdapter
             }
             AppMode.SHOPPING_CART -> {
                 editTextInput.hint = "Enter item name"
                 buttonAdd.text = "Add Item"
                 layoutCartControls.visibility = View.VISIBLE
-
+                layoutTaskControls.visibility = View.GONE
                 listView.adapter = cartAdapter
                 updateCartInfo()
+            }
+            AppMode.TASK_MANAGER -> {
+                editTextInput.hint = "Enter task title"
+                buttonAdd.text = "Add Task"
+                layoutTaskControls.visibility = View.VISIBLE
+                layoutCartControls.visibility = View.GONE
+                listView.adapter = taskAdapter
+                updateTaskInfo()
             }
         }
 
@@ -157,7 +191,7 @@ class MainActivity : AppCompatActivity() {
         when (currentMode) {
             AppMode.STUDENT_LIST -> addStudent(input)
             AppMode.SHOPPING_CART -> addCartItem(input)
-
+            AppMode.TASK_MANAGER -> addTask(input)
         }
 
         editTextInput.text.clear()
@@ -225,8 +259,23 @@ class MainActivity : AppCompatActivity() {
     private fun clearAdditionalFields() {
         editTextPrice.text.clear()
         editTextQuantity.text.clear()
+        editTextDescription.text.clear()
+        spinnerPriority.setSelection(0)
+    }
 
 
+    private fun addTask(title: String) {
+        val description = editTextDescription.text.toString().trim()
+        val priorityIndex = spinnerPriority.selectedItemPosition
+        val priority = TaskPriority.values()[priorityIndex]
+
+        val task = Task(title, description, false, priority)
+        taskList.add(task)
+        taskAdapter.notifyDataSetChanged()
+
+        updateTaskInfo()
+        showToast("Added task: $title")
+        Log.d(TAG, "Added task: $title with priority: ${priority.displayName}")
     }
 
     private fun clearAll() {
@@ -237,6 +286,7 @@ class MainActivity : AppCompatActivity() {
                 studentAdapter.notifyDataSetChanged()
                 showToast("Cleared all $count students")
             }
+
             AppMode.SHOPPING_CART -> {
                 val count = cartItemList.size
                 cartItemList.clear()
@@ -244,8 +294,15 @@ class MainActivity : AppCompatActivity() {
                 showToast("Cleared all $count items from cart")
                 updateCartInfo()
             }
-        }
 
+            AppMode.TASK_MANAGER -> {
+                val count = taskList.size
+                taskList.clear()
+                taskAdapter.notifyDataSetChanged()
+                showToast("Cleared all $count tasks")
+                updateTaskInfo()
+            }
+        }
         updateInfoDisplay()
         Log.d(TAG, "Cleared all items in mode: ${currentMode.displayName}")
     }
@@ -259,6 +316,10 @@ class MainActivity : AppCompatActivity() {
             AppMode.SHOPPING_CART -> {
                 val item = cartItemList[position]
                 showItemDetailsDialog(item)
+            }
+            AppMode.TASK_MANAGER -> {
+                val task = taskList[position]
+                toggleTaskCompletion(task, position)
             }
         }
     }
@@ -283,6 +344,7 @@ class MainActivity : AppCompatActivity() {
                     showToast("Removed: ${student.name}")
                 }
             }
+
             AppMode.SHOPPING_CART -> {
                 if (position < cartItemList.size) {
                     val item = cartItemList.removeAt(position)
@@ -291,8 +353,16 @@ class MainActivity : AppCompatActivity() {
                     updateCartInfo()
                 }
             }
+
+            AppMode.TASK_MANAGER -> {
+                if (position < taskList.size) {
+                    val task = taskList.removeAt(position)
+                    taskAdapter.notifyDataSetChanged()
+                    showToast("Removed: ${task.title}")
+                    updateTaskInfo()
+                }
+            }
         }
-        updateInfoDisplay()
     }
 
     private fun showItemDetailsDialog(item: CartItem) {
@@ -309,6 +379,18 @@ class MainActivity : AppCompatActivity() {
             .setMessage(message)
             .setPositiveButton("OK", null)
             .show()
+        updateInfoDisplay()
+    }
+
+    private fun toggleTaskCompletion(task: Task, position: Int) {
+        task.isCompleted = !task.isCompleted
+        taskAdapter.notifyDataSetChanged()
+        updateTaskInfo()
+
+        val status = if (task.isCompleted) "completed" else "pending"
+        showToast("Task marked as $status")
+        Log.d(TAG, "Task '${task.title}' marked as $status")
+
     }
 
     private fun updateInfoDisplay() {
@@ -317,6 +399,7 @@ class MainActivity : AppCompatActivity() {
                 textViewInfo.text = "Total Students: ${studentList.size}"
             }
             AppMode.SHOPPING_CART -> updateCartInfo()
+            AppMode.TASK_MANAGER -> updateTaskInfo()
         }
     }
 
@@ -324,6 +407,14 @@ class MainActivity : AppCompatActivity() {
         val totalItems = cartItemList.sumOf { it.quantity }
         val totalValue = cartItemList.sumOf { it.getTotalPrice() }
         textViewInfo.text = "Items: $totalItems | Total: $${String.format("%.2f", totalValue)}"
+    }
+
+    private fun updateTaskInfo() {
+        val completed = taskList.count { it.isCompleted }
+        val pending = taskList.size - completed
+        val highPriority = taskList.count { it.priority == TaskPriority.HIGH && !it.isCompleted }
+
+        textViewInfo.text = "Tasks: $pending pending, $completed completed | High Priority: $highPriority"
     }
 
     private fun addInitialData() {
@@ -345,6 +436,14 @@ class MainActivity : AppCompatActivity() {
         // Notify all adapters
         studentAdapter.notifyDataSetChanged()
         cartAdapter.notifyDataSetChanged()
+        taskAdapter.notifyDataSetChanged()
+
+        // Add initial tasks
+        taskList.addAll(listOf(
+            Task("Complete Assignment", "Mobile Programming", false, TaskPriority.HIGH),
+            Task("Shopping", "Visit Mart", false, TaskPriority.MEDIUM),
+            Task("Tour", "Museum", true, TaskPriority.LOW)
+        ))
 
         Log.d(TAG, "Initial data added to all modes")
     }
