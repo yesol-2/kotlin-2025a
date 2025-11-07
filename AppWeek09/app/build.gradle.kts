@@ -48,7 +48,7 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
 
     // RecyclerView
-    implementation("androidx.test.runner.AndroidUnRunner")
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
